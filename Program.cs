@@ -14,7 +14,46 @@ namespace udp_random
 	{
 		static void Main(string[] args) {
 			Thread receiveThread = new Thread(new ThreadStart(Reciever));
-			receiveThread.Start();	
+			receiveThread.Start();
+
+			Program program = new Program();
+
+			//C:/Users/overlord/Documents/PSIA/
+
+			localPort = 8002;
+			remotePort = 8001;
+			remoteAddress = "25.84.62.46";
+
+			Console.WriteLine("Enter '1' to send message");
+			Console.WriteLine("Enter '2' to send file");
+			Console.WriteLine("Enter '0' to exit");
+
+			running = true;
+			while (running)
+			{
+				string input = Console.ReadLine();
+				int number;
+				Int32.TryParse(input, out number);
+
+				switch (number)
+				{
+					case 1:
+						number = -1;
+						program.SendMessage();
+						Console.WriteLine("Command done. Enter new command");
+						break;
+					case 2:
+						number = -1;
+						program.SendFile();
+						Console.WriteLine("Command done. Enter new command");
+						break;
+					case 0:
+						running = !running;
+						break;
+					default:
+						break;
+				}
+			}
 		}
 
 		private static void Reciever() {
@@ -69,4 +108,77 @@ namespace udp_random
 			}
 		}
 	}
+
+	public void SendMessage()
+	{
+		Console.WriteLine("Enter message : ");
+		string messageStr = Console.ReadLine();
+		UdpClient sender = new UdpClient();
+		try
+		{
+			byte[] message = Encoding.ASCII.GetBytes("m" + messageStr);
+
+			//send file name
+			sender.Send(message, message.Length, remoteAddress, remotePort);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex.Message);
+		}
+		finally
+		{
+			sender.Close();
+		}
+	}
+
+	public void SendFile()
+	{
+		Console.WriteLine("Enter file path : ");
+		path = Console.ReadLine();
+		Console.WriteLine("Enter file name : ");
+		fileName = Console.ReadLine();
+
+		UdpClient sender = new UdpClient();
+
+		try
+		{
+			//file name identificator + file name
+			byte[] fileNameBytes = Encoding.ASCII.GetBytes("f" + fileName);
+
+			//send file name
+			sender.Send(fileNameBytes, fileNameBytes.Length, remoteAddress, remotePort);
+
+			//open file
+			FileStream fs = File.OpenRead(path + fileName);
+			byte[] buffer = new byte[1024];
+
+			//set file identificator
+			buffer[0] = Encoding.ASCII.GetBytes("p")[0];
+
+			//send file
+			while (fs.Read(buffer, 1, buffer.Length - 1) > 0)
+			{
+				UTF8Encoding temp = new UTF8Encoding(true);
+				sender.Send(buffer, buffer.Length, remoteAddress, remotePort);
+			}
+
+			fs.Close();
+
+			byte[] message = Encoding.ASCII.GetBytes("e" + fileName);
+
+			//send file name
+			sender.Send(message, message.Length, remoteAddress, remotePort);
+
+			//close file
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex.Message);
+		}
+		finally
+		{
+			sender.Close();
+		}
+	}
+}
 }
