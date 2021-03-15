@@ -60,7 +60,7 @@ namespace UdpClientApp
                         Console.WriteLine("Command done. Enter new command");
                         break;
                     case 0:
-                        running = !running;
+                        MainClass.running = false;
                         break;
                     default:
                         break;
@@ -71,8 +71,21 @@ namespace UdpClientApp
         {
             byte[] messagePart = Encoding.ASCII.GetBytes(packet);
             UInt32 crc = Crc32.Compute(messagePart);
-            byte[] message = Encoding.ASCII.GetBytes(crc.ToString() + identifier + packet);
+            byte[] crcBytes = BitConverter.GetBytes(crc);
+            byte[] firstPart = Encoding.ASCII.GetBytes('[');
+            byte[] secondPart = Encoding.ASCII.GetBytes(']' + identifier + packet);
+            byte[] message = Combine(firstPart, crcBytes, secondPart);
             return message;
+        }
+
+        public static byte[] Combine(byte[] first, byte[] second, byte[] third)
+        {
+            byte[] ret = new byte[first.Length + second.Length + third.Length];
+            Buffer.BlockCopy(first, 0, ret, 0, first.Length);
+            Buffer.BlockCopy(second, 0, ret, first.Length, second.Length);
+            Buffer.BlockCopy(third, 0, ret, first.Length + second.Length,
+                             third.Length);
+            return ret;
         }
 
 
@@ -100,32 +113,30 @@ namespace UdpClientApp
             sender.Send(packet, packet.Length, remoteAddress, remotePort);
 
             //start timer
-            Stopwatch s = new Stopwatch();
-            s.Start();
+            var waitTime = new TimeSpan(0, 0, 1);
+            var waitUntil = DateTime.Now + waitTime;
 
             //wait for confiramation
-            while (s.Elapsed < TimeSpan.FromMilliseconds(1000))
+            while (DateTime.Now <= waitUntil)
             {
-                Console.WriteLine(s.ElapsedMilliseconds);
                 data = receiver.Receive(ref remoteIp);
                 if (System.Text.Encoding.UTF8.GetString(data) != RECEIVE_NULL) //if received something
                 {
+                    receiver.Close();
                     if (System.Text.Encoding.UTF8.GetString(data) == RECEIVE_CONFIRM) // if received confirmation
                     {
-                        s.Stop();
-                        receiver.Close();
+                        Console.WriteLine("Confirm");
                         return true;
                     } else
                     {
-                        s.Stop();
-                        receiver.Close();
+                        Console.WriteLine("!Confirm");
                         return false;
                     }
                 }
             }
 
-            s.Stop();
             receiver.Close();
+            Console.WriteLine("TimeOut");
             return false;
         }
 
