@@ -12,7 +12,7 @@ namespace udp_random
 			try
 			{
 				byte[] message = Encoding.ASCII.GetBytes(msg);
-				sender.Send(message, message.Length, ip, port);
+				sender.Send(message, message.Length, ip, 8002);
 			}
 			catch (Exception ex)
 			{
